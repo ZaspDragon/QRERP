@@ -1,213 +1,149 @@
-import { qrTypes, type ParsedScan, type QRPayload, type QRType } from '../types';
-import { toTitleCase } from './format';
-
-const qrTypeSet = new Set<QRType>(qrTypes);
+import QRCode from 'qrcode';
+import type { ItemLabelPayload, ParsedQrScan } from '../types';
 
 export function createId(prefix: string) {
   const suffix =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
+      ? crypto.randomUUID().slice(0, 10)
+      : Math.random().toString(36).slice(2, 12);
 
-  return `${prefix}-${suffix}`.toUpperCase();
+  return `${prefix}-${suffix}`;
 }
 
-export function getWorkflowRoute(qrType: QRType) {
-  switch (qrType) {
-    case 'ITEM':
-    case 'BIN':
-    case 'PALLET':
-      return '/inventory';
-    case 'RECEIVING':
-    case 'OSD':
-      return '/receiving';
-    case 'PUTAWAY':
-      return '/putaway';
-    case 'CYCLE_COUNT':
-      return '/cycle-count';
-    case 'ORDER_PICK':
-    case 'TRANSFER_PICK':
-      return '/order-picking';
-    case 'EQUIPMENT':
-      return '/equipment';
-    case 'SAFETY':
-      return '/safety';
-    case 'EMPLOYEE':
-      return '/settings';
-    case 'UNKNOWN':
-    default:
-      return '/scan-history';
-  }
+export function normalizeItemNumber(value: string) {
+  return value.trim();
 }
 
-export function getWorkflowName(qrType: QRType) {
-  switch (qrType) {
-    case 'ITEM':
-    case 'BIN':
-    case 'PALLET':
-      return 'Inventory';
-    case 'RECEIVING':
-    case 'OSD':
-      return 'Receiving';
-    case 'PUTAWAY':
-      return 'Putaway';
-    case 'CYCLE_COUNT':
-      return 'Cycle Count';
-    case 'ORDER_PICK':
-    case 'TRANSFER_PICK':
-      return 'Order Picking';
-    case 'EQUIPMENT':
-      return 'Equipment';
-    case 'SAFETY':
-      return 'Safety';
-    case 'EMPLOYEE':
-      return 'Settings';
-    case 'UNKNOWN':
-    default:
-      return 'Scan History';
-  }
+export function normalizeLocation(value: string) {
+  return value.trim().toUpperCase();
 }
 
-function normalizeType(input: unknown): QRType {
-  if (typeof input !== 'string') {
-    return 'UNKNOWN';
-  }
-
-  const normalized = input.trim().toUpperCase().replace(/\s+/g, '_') as QRType;
-  return qrTypeSet.has(normalized) ? normalized : 'UNKNOWN';
+export function buildLocationQrValue(location: string) {
+  return `LOC:${normalizeLocation(location)}`;
 }
 
-function normalizePayloadCandidate(payload: Partial<QRPayload>, rawValue: string): ParsedScan {
-  const qrType = normalizeType(payload.type);
-  const entityId = String(payload.entityId ?? payload.code ?? payload.label ?? rawValue).trim();
-  const code = String(payload.code ?? entityId).trim();
-  const displayValue = String(payload.label ?? payload.code ?? entityId).trim();
-  const normalizedPayload: QRPayload = {
-    type: qrType,
-    entityId,
-    code,
-    label: displayValue,
-    workflow: String(payload.workflow ?? getWorkflowName(qrType)),
-    site: String(payload.site ?? 'QR Legends Demo DC'),
-    createdAt: String(payload.createdAt ?? new Date().toISOString()),
-    metadata: payload.metadata ?? {},
+export function buildItemLabelPayload(input: {
+  item: string;
+  description: string;
+  location: string;
+  uom: string;
+  source: string;
+  qty?: number;
+}) {
+  const payload: ItemLabelPayload = {
+    type: 'item_label',
+    item: normalizeItemNumber(input.item),
+    description: input.description.trim(),
+    location: normalizeLocation(input.location),
+    uom: input.uom.trim(),
+    source: input.source.trim(),
   };
 
-  return {
-    qrType,
-    rawValue,
-    displayValue,
-    entityId,
-    code,
-    workflowRoute: getWorkflowRoute(qrType),
-    payload: normalizedPayload,
-  };
+  if (input.qty && input.qty > 0) {
+    payload.qty = input.qty;
+  }
+
+  return payload;
 }
 
-export function parseScanValue(rawValue: string): ParsedScan {
+export function isPlainItemNumber(value: string) {
+  return /^\d+$/.test(value.trim());
+}
+
+export function parseQrScan(rawValue: string): ParsedQrScan {
   const trimmed = rawValue.trim();
 
   if (!trimmed) {
     return {
-      qrType: 'UNKNOWN',
+      parsedType: 'unknown',
       rawValue,
-      displayValue: 'Empty Scan',
-      entityId: 'UNKNOWN',
-      code: 'UNKNOWN',
-      workflowRoute: getWorkflowRoute('UNKNOWN'),
+      item: '',
+      location: '',
+      description: '',
+      uom: '',
+      source: '',
+      qty: 0,
+      payload: null,
+    };
+  }
+
+  if (trimmed.toUpperCase().startsWith('LOC:')) {
+    return {
+      parsedType: 'location',
+      rawValue,
+      item: '',
+      location: normalizeLocation(trimmed.slice(4)),
+      description: '',
+      uom: '',
+      source: 'location_label',
+      qty: 0,
       payload: null,
     };
   }
 
   try {
-    const parsed = JSON.parse(trimmed) as Partial<QRPayload> & { item?: string; description?: string; location?: string; source?: string; type?: string };
-    if (parsed && typeof parsed === 'object') {
-      if (String(parsed.type ?? '').toLowerCase() === 'item_label' && parsed.item) {
-        return {
-          qrType: 'ITEM',
-          rawValue,
-          displayValue: String(parsed.description ?? parsed.item).trim(),
-          entityId: String(parsed.item).trim(),
-          code: String(parsed.item).trim(),
-          workflowRoute: getWorkflowRoute('ITEM'),
-          payload: null,
-        };
-      }
+    const parsed = JSON.parse(trimmed) as Partial<ItemLabelPayload> & { type?: string };
 
-      return normalizePayloadCandidate(parsed, trimmed);
+    if (String(parsed.type ?? '').toLowerCase() === 'item_label') {
+      const payload = buildItemLabelPayload({
+        item: String(parsed.item ?? ''),
+        description: String(parsed.description ?? ''),
+        location: String(parsed.location ?? ''),
+        uom: String(parsed.uom ?? ''),
+        source: String(parsed.source ?? 'item_label'),
+        qty: typeof parsed.qty === 'number' ? parsed.qty : Number(parsed.qty ?? 0),
+      });
+
+      return {
+        parsedType: 'item_label',
+        rawValue,
+        item: payload.item,
+        location: payload.location,
+        description: payload.description,
+        uom: payload.uom,
+        source: payload.source,
+        qty: payload.qty ?? 0,
+        payload,
+      };
     }
   } catch {
-    // Manual entry can still be interpreted below.
+    // Fall through to plain item handling.
   }
 
-  const prefixMatch = trimmed.match(/^([A-Z_]+)\s*[:|]\s*(.+)$/i);
-  if (prefixMatch) {
-    const qrType = normalizeType(prefixMatch[1]);
-    const entityId = prefixMatch[2].trim();
+  if (isPlainItemNumber(trimmed)) {
     return {
-      qrType,
+      parsedType: 'item_number',
       rawValue,
-      displayValue: entityId,
-      entityId,
-      code: entityId,
-      workflowRoute: getWorkflowRoute(qrType),
-      payload: null,
-    };
-  }
-
-  if (/^\d+$/.test(trimmed)) {
-    return {
-      qrType: 'ITEM',
-      rawValue,
-      displayValue: trimmed,
-      entityId: trimmed,
-      code: trimmed,
-      workflowRoute: getWorkflowRoute('ITEM'),
+      item: normalizeItemNumber(trimmed),
+      location: '',
+      description: '',
+      uom: '',
+      source: 'plain_item_number',
+      qty: 0,
       payload: null,
     };
   }
 
   return {
-    qrType: 'UNKNOWN',
+    parsedType: 'unknown',
     rawValue,
-    displayValue: trimmed,
-    entityId: trimmed,
-    code: trimmed,
-    workflowRoute: getWorkflowRoute('UNKNOWN'),
+    item: '',
+    location: '',
+    description: '',
+    uom: '',
+    source: '',
+    qty: 0,
     payload: null,
   };
 }
 
-export function stringifyPayload(payload: QRPayload) {
+export function stringifyQrPayload(payload: ItemLabelPayload) {
   return JSON.stringify(payload, null, 2);
 }
 
-export function buildPayload(input: {
-  type: QRType;
-  entityId: string;
-  code: string;
-  label: string;
-  site: string;
-  metadata: Record<string, string>;
-}) {
-  const workflow = getWorkflowName(input.type);
-
-  return {
-    type: input.type,
-    entityId: input.entityId.trim(),
-    code: input.code.trim(),
-    label: input.label.trim(),
-    workflow,
-    site: input.site.trim(),
-    createdAt: new Date().toISOString(),
-    metadata: input.metadata,
-  } satisfies QRPayload;
-}
-
-export function getRouteActionLabel(qrType: QRType) {
-  return `Routed to ${getWorkflowName(qrType)}`;
-}
-
-export function getReadableType(qrType: QRType) {
-  return toTitleCase(qrType);
+export async function toQrDataUrl(value: string, width = 240) {
+  return QRCode.toDataURL(value, {
+    width,
+    margin: 1,
+  });
 }

@@ -387,6 +387,11 @@ a {
   background: rgba(180, 104, 0, 0.14);
 }
 
+.status-danger {
+  color: var(--danger);
+  background: rgba(192, 63, 63, 0.12);
+}
+
 .status-neutral {
   color: #4f6783;
   background: rgba(79, 103, 131, 0.12);
@@ -621,6 +626,114 @@ textarea.text-input {
   min-width: 220px;
   white-space: pre-wrap;
   line-height: 1.45;
+}
+
+.compact-note {
+  min-width: 0;
+  max-width: 320px;
+}
+
+.table-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+.verification-banner {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.verification-banner.success {
+  color: var(--success);
+  background: rgba(31, 122, 79, 0.1);
+  border-color: rgba(31, 122, 79, 0.22);
+}
+
+.verification-banner.warning {
+  color: var(--warning);
+  background: rgba(180, 104, 0, 0.1);
+  border-color: rgba(180, 104, 0, 0.22);
+}
+
+.verification-banner.danger {
+  color: var(--danger);
+  background: rgba(192, 63, 63, 0.1);
+  border-color: rgba(192, 63, 63, 0.24);
+}
+
+.verification-banner.info {
+  color: var(--primary-strong);
+  background: rgba(20, 93, 168, 0.08);
+  border-color: rgba(20, 93, 168, 0.22);
+}
+
+.inline-form-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.dashboard-metric {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(20, 93, 168, 0.06), rgba(255, 255, 255, 0.98));
+}
+
+.dashboard-metric strong {
+  display: block;
+  font-size: 1.8rem;
+  color: var(--primary-strong);
+}
+
+.dashboard-metric span {
+  color: var(--text-soft);
+}
+
+.sidebar-user,
+.mobile-user-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+.sidebar-user small,
+.mobile-user-card small {
+  color: var(--text-soft);
+}
+
+.sidebar-signout,
+.mobile-signout {
+  width: 100%;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-panel {
+  width: min(760px, 100%);
+  display: grid;
+  gap: 18px;
 }
 
 .bottom-nav {
