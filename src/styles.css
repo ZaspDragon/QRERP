@@ -230,12 +230,19 @@ a {
   flex-wrap: wrap;
 }
 
+.tab-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .primary-button,
 .secondary-button,
 .ghost-button,
 .menu-button,
 .chip-button,
-.bottom-link {
+.bottom-link,
+.tab-button {
   min-height: 48px;
   padding: 12px 16px;
   border-radius: 14px;
@@ -248,7 +255,8 @@ a {
 .ghost-button:hover,
 .menu-button:hover,
 .chip-button:hover,
-.bottom-link:hover {
+.bottom-link:hover,
+.tab-button:hover {
   transform: translateY(-1px);
 }
 
@@ -262,10 +270,18 @@ a {
 .menu-button,
 .chip-button,
 .bottom-link,
-.ghost-button {
+.ghost-button,
+.tab-button {
   color: var(--primary-strong);
   background: var(--surface-strong);
   border-color: var(--border);
+}
+
+.tab-button.active {
+  color: white;
+  background: linear-gradient(135deg, var(--primary), #2b7dd0);
+  border-color: transparent;
+  box-shadow: 0 12px 24px rgba(20, 93, 168, 0.2);
 }
 
 .menu-button {
@@ -541,11 +557,31 @@ textarea.text-input {
 .info-banner {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
+  white-space: pre-wrap;
+}
+
+.success-banner {
+  color: var(--success);
+  border-color: rgba(31, 122, 79, 0.22);
+  background: rgba(31, 122, 79, 0.08);
+}
+
+.warning-banner {
+  color: var(--warning);
+  border-color: rgba(180, 104, 0, 0.22);
+  background: rgba(180, 104, 0, 0.08);
+}
+
+.danger-banner {
+  color: var(--danger);
+  border-color: rgba(192, 63, 63, 0.22);
+  background: rgba(192, 63, 63, 0.08);
 }
 
 .empty-state {
@@ -573,6 +609,18 @@ textarea.text-input {
 .toggle-row input {
   width: 18px;
   height: 18px;
+}
+
+.inline-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-note {
+  min-width: 220px;
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .bottom-nav {
