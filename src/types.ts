@@ -1,208 +1,40 @@
-export const qrTypes = [
-  'ITEM',
-  'BIN',
-  'PALLET',
-  'RECEIVING',
-  'PUTAWAY',
-  'CYCLE_COUNT',
-  'ORDER_PICK',
-  'TRANSFER_PICK',
-  'EMPLOYEE',
-  'EQUIPMENT',
-  'SAFETY',
-  'OSD',
-  'UNKNOWN',
-] as const;
-
-export type QRType = (typeof qrTypes)[number];
-export type ScanSource = 'camera' | 'manual' | 'demo' | 'generator';
-export type AccessLevel = 'picker' | 'lead' | 'admin' | 'inventory';
+export type UserRole = 'worker' | 'picker' | 'counter' | 'inventory' | 'lead' | 'admin' | 'platformOwner';
+export type ParsedQrType = 'location' | 'item_label' | 'item_number' | 'unknown';
+export type ScanSource = 'camera' | 'manual' | 'upload' | 'system';
 export type PickLineStatus = 'Queued' | 'Verified' | 'Needs Review' | 'Override Approved' | 'Picked' | 'Short';
-export type InventoryStatus = 'Pending' | 'Needs Review' | 'Short' | '✅ Sent to Inventory';
+export type InventoryStatus =
+  | 'Pending'
+  | '✅ Sent to Inventory'
+  | '⚠️ Needs Recheck'
+  | '✅ Pulled'
+  | '⚠️ Partially Pulled'
+  | '❌ Issue / Needs Review'
+  | '✔️ Resolved'
+  | 'Short';
 
-export interface QRPayload {
-  type: QRType;
-  entityId: string;
-  code: string;
-  label: string;
-  workflow: string;
-  site: string;
-  createdAt: string;
-  metadata: Record<string, string>;
-}
-
-export interface ParsedScan {
-  qrType: QRType;
-  rawValue: string;
-  displayValue: string;
-  entityId: string;
-  code: string;
-  workflowRoute: string;
-  payload: QRPayload | null;
-}
-
-export interface ScanRecord {
-  id: string;
-  timestamp: string;
-  qrType: QRType;
-  rawValue: string;
-  displayValue: string;
-  action: string;
-  status: string;
-  user: string;
-  source: ScanSource;
-  workflowRoute: string;
-  entityId: string;
-  payload: QRPayload | null;
-  notes?: string;
-}
-
-export interface Item {
-  id: string;
-  sku: string;
+export interface ActorIdentity {
+  uid: string;
   name: string;
-  category: string;
-  quantity: number;
-  binId: string;
-  palletId: string;
-  status: string;
-  reorderPoint: number;
-  lastScan: string;
+  email: string;
+  role: UserRole;
 }
 
-export interface Bin {
-  id: string;
-  zone: string;
-  aisle: string;
-  level: string;
-  occupancy: number;
-  capacity: number;
-  status: string;
+export interface UserProfile extends ActorIdentity {
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface Pallet {
-  id: string;
-  itemCount: number;
-  currentBinId: string;
-  status: string;
-  lastMove: string;
-}
-
-export interface Employee {
+export interface EmployeeRecord {
   id: string;
   name: string;
   email: string;
   role: string;
-  accessLevel: AccessLevel;
-  shift: string;
-  certifications: string[];
-  status: string;
-}
-
-export interface ReceivingLoad {
-  id: string;
-  supplier: string;
-  dock: string;
-  eta: string;
-  status: string;
-  palletId: string;
-  itemCount: number;
-}
-
-export interface PutawayTask {
-  id: string;
-  fromDock: string;
-  toBin: string;
-  palletId: string;
-  priority: string;
-  status: string;
-  assignee: string;
-}
-
-export interface CycleCountTask {
-  id: string;
-  zone: string;
-  scheduledFor: string;
-  variance: number;
-  status: string;
-  assignee: string;
-}
-
-export interface OrderPickTask {
-  id: string;
-  orderId: string;
-  route: string;
-  lines: number;
-  priority: string;
-  status: string;
-  assignee: string;
-  mode: 'Order Pick' | 'Transfer Pick';
-}
-
-export interface Shipment {
-  id: string;
-  carrier: string;
-  dock: string;
-  orders: number;
-  trailer: string;
-  departure: string;
-  status: string;
-}
-
-export interface SafetyReport {
-  id: string;
-  title: string;
-  area: string;
-  severity: string;
-  owner: string;
-  status: string;
-  updatedAt: string;
-}
-
-export interface EquipmentRecord {
-  id: string;
-  name: string;
-  type: string;
-  battery: string;
-  status: string;
-  location: string;
-  assignedTo: string;
-}
-
-export interface SettingsState {
-  siteName: string;
-  activeUserId: string;
-  handheldMode: boolean;
-  autoPrintLabels: boolean;
-}
-
-export interface AppState {
-  items: Item[];
-  bins: Bin[];
-  pallets: Pallet[];
-  employees: Employee[];
-  receivingLoads: ReceivingLoad[];
-  putawayTasks: PutawayTask[];
-  cycleCounts: CycleCountTask[];
-  orderPicks: OrderPickTask[];
-  shipments: Shipment[];
-  safetyReports: SafetyReport[];
-  equipment: EquipmentRecord[];
-  scanHistory: ScanRecord[];
-  activeScanId: string | null;
-  settings: SettingsState;
-}
-
-export interface DetailRow {
-  label: string;
-  value: string;
-}
-
-export interface EntitySummary {
-  title: string;
-  subtitle: string;
-  status: string;
-  details: DetailRow[];
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy: string;
+  createdByEmail: string;
 }
 
 export interface ItemLabelPayload {
@@ -212,6 +44,56 @@ export interface ItemLabelPayload {
   location: string;
   uom: string;
   source: string;
+  qty?: number;
+}
+
+export interface ParsedQrScan {
+  parsedType: ParsedQrType;
+  rawValue: string;
+  item: string;
+  location: string;
+  description: string;
+  uom: string;
+  source: string;
+  qty: number;
+  payload: ItemLabelPayload | null;
+}
+
+export interface ReceivingLabelDraft {
+  lineId: string;
+  docType: string;
+  docNumber: string;
+  branch: string;
+  item: string;
+  qty: number;
+  description: string;
+  location: string;
+  uom: string;
+  sourceFile: string;
+  qrPayload: ItemLabelPayload;
+}
+
+export interface ReceivingLabelRecord extends ReceivingLabelDraft {
+  id: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
+export interface LocationLabelRecord {
+  id: string;
+  location: string;
+  qrValue: string;
+  aisle: string;
+  bay: string;
+  level: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy: string;
+  createdByEmail: string;
 }
 
 export interface ItemMasterImportRow {
@@ -239,6 +121,62 @@ export interface ItemMasterRecord extends ItemMasterImportRow {
   updatedByEmail: string;
 }
 
+export interface PutAwayLine {
+  id: string;
+  lineNumber: number;
+  item: string;
+  description: string;
+  qty: number;
+  location: string;
+  notes: string;
+  scannedItemRaw: string;
+  scannedLocationRaw: string;
+}
+
+export interface PutAwaySession {
+  id: string;
+  worker: string;
+  date: string;
+  docNumber: string;
+  receivedTime: string;
+  stockedTime: string;
+  dockToStockMinutes: number;
+  lines: PutAwayLine[];
+  lineCount: number;
+  totalQty: number;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
+export interface CycleCountLine {
+  id: string;
+  lineNumber: number;
+  item: string;
+  description: string;
+  location: string;
+  systemQty: number;
+  countedQty: number;
+  variance: number;
+  reason: string;
+  warning: string;
+  done: boolean;
+}
+
+export interface CycleCountSession {
+  id: string;
+  counter: string;
+  date: string;
+  countId: string;
+  activeLocation: string;
+  lines: CycleCountLine[];
+  lineCount: number;
+  varianceLines: number;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
 export interface PickTicketLine {
   id: string;
   pickTicketId: string;
@@ -247,7 +185,10 @@ export interface PickTicketLine {
   expectedItem: string;
   expectedDescription: string;
   fromSlot: string;
-  quantity: number;
+  requiredQty: number;
+  availableQty: number;
+  pickedQty: number;
+  remainingQty: number;
   uom: string;
   scannedItem: string;
   scannedLocation: string;
@@ -262,13 +203,28 @@ export interface PickTicketLine {
   overrideBy: string;
   overrideByEmail: string;
   lastVerifiedAt?: string;
+  lastPullQty: number;
+}
+
+export interface OrderPickingSession {
+  id: string;
+  picker: string;
+  date: string;
+  orderNumber: string;
+  lines: PickTicketLine[];
+  lineCount: number;
+  totalPicked: number;
+  issueLines: number;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
 }
 
 export interface ScanVerificationRecord {
   id: string;
+  documentNumber: string;
   pickTicketId: string;
   lineId: string;
-  orderNumber: string;
   expectedItem: string;
   expectedLocation: string;
   scannedItem: string;
@@ -286,16 +242,74 @@ export interface ScanVerificationRecord {
 
 export interface PullConfirmationRecord {
   id: string;
+  documentNumber: string;
   pickTicketId: string;
   lineId: string;
-  orderNumber: string;
   item: string;
   description: string;
   location: string;
+  pickedQty: number;
   inventoryStatus: InventoryStatus;
   active: boolean;
   notes: string;
   createdAt?: string;
+  updatedAt?: string;
   createdBy: string;
   createdByEmail: string;
+  updatedBy: string;
+  updatedByEmail: string;
+}
+
+export interface QrScanRecord {
+  id: string;
+  rawValue: string;
+  parsedType: ParsedQrType;
+  item: string;
+  location: string;
+  description: string;
+  qty: number;
+  sourceModule: string;
+  documentNumber: string;
+  sessionId: string;
+  expectedItem: string;
+  expectedLocation: string;
+  result: string;
+  scanSource: ScanSource;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
+export interface ActivityLogRecord {
+  id: string;
+  type: string;
+  employee: string;
+  date: string;
+  item: string;
+  description: string;
+  qty: number;
+  systemQty: number;
+  countedQty: number;
+  requiredQty: number;
+  pickedQty: number;
+  remainingQty: number;
+  availableQty: number;
+  variance: number;
+  location: string;
+  uom: string;
+  documentNumber: string;
+  receivedTime: string;
+  stockedTime: string;
+  dockToStockMinutes: number;
+  status: string;
+  reason: string;
+  notes: string;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
+export interface InventoryItemSignals {
+  label: string;
+  tone: 'positive' | 'warning' | 'neutral';
 }

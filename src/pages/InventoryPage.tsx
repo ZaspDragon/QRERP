@@ -1,243 +1,300 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import DataTable from '../components/ui/DataTable';
 import PageHeader from '../components/ui/PageHeader';
 import SectionCard from '../components/ui/SectionCard';
 import StatCard from '../components/ui/StatCard';
 import StatusBadge from '../components/ui/StatusBadge';
-import RouteWorkflowCard from '../components/workflow/RouteWorkflowCard';
 import { useERP } from '../context/ERPContext';
-import { getItemMasterRecord } from '../lib/item-master';
-import { getFirebaseConfigError, isFirebaseConfigured } from '../lib/firebase';
-import { listActivePullConfirmations, listRecentScanVerifications } from '../lib/verification-store';
-import { formatCompactNumber, formatDateTime } from '../utils/format';
-import type { ItemMasterRecord, PullConfirmationRecord, ScanVerificationRecord } from '../types';
+import { getItemMasterRecord, listItemMasterRecordsByLocation } from '../lib/item-master';
+import {
+  listPullConfirmationsByDocument,
+  listPullConfirmationsByItem,
+  listPullConfirmationsByLocation,
+  listRecentQrScansByDocument,
+  listRecentQrScansByItem,
+  listRecentQrScansByLocation,
+  listRecentScanVerificationsByDocument,
+  listRecentScanVerificationsByItem,
+  listRecentScanVerificationsByLocation,
+} from '../lib/warehouse-store';
+import { formatDateTime } from '../utils/format';
+import type { InventoryItemSignals, ItemMasterRecord, PullConfirmationRecord, QrScanRecord, ScanVerificationRecord } from '../types';
 
-function deriveLookupSignals(pulls: PullConfirmationRecord[], verifications: ScanVerificationRecord[]) {
-  const signals: string[] = [];
+type SearchMode = 'item' | 'location' | 'document';
 
-  if (pulls.length) {
-    signals.push('Pulled');
+function deriveSignals(
+  itemRecord: ItemMasterRecord | null,
+  itemMatches: ItemMasterRecord[],
+  pulls: PullConfirmationRecord[],
+  verifications: ScanVerificationRecord[],
+): InventoryItemSignals[] {
+  const signals: InventoryItemSignals[] = [];
+
+  if (itemRecord || itemMatches.length) {
+    signals.push({ label: 'Item Master Found', tone: 'positive' });
   }
 
-  if (verifications.some((record) => record.overallResult.toLowerCase().includes('wrong'))) {
-    signals.push('Wrong');
+  if (pulls.some((record) => record.inventoryStatus === '✅ Sent to Inventory')) {
+    signals.push({ label: '✅ Pulled', tone: 'positive' });
   }
 
-  if (
-    verifications.some(
-      (record) =>
-        record.overallResult.toLowerCase().includes('short') ||
-        record.notes.toLowerCase().includes('short'),
-    )
-  ) {
-    signals.push('Short');
+  if (pulls.some((record) => record.inventoryStatus === '⚠️ Partially Pulled')) {
+    signals.push({ label: '⚠️ Partially Pulled', tone: 'warning' });
   }
 
-  if (
-    verifications.some(
-      (record) =>
-        record.overrideUsed ||
-        record.overallResult.toLowerCase().includes('review') ||
-        record.overallResult.toLowerCase().includes('override'),
-    )
-  ) {
-    signals.push('Needs Review');
+  if (pulls.some((record) => record.inventoryStatus === '⚠️ Needs Recheck')) {
+    signals.push({ label: '⚠️ Needs Recheck', tone: 'warning' });
   }
 
-  return signals.length ? signals : ['No recent activity'];
+  if (verifications.some((record) => record.overallResult.includes('Wrong') || record.itemStatus.includes('Wrong'))) {
+    signals.push({ label: '❌ Wrong Item', tone: 'warning' });
+  }
+
+  if (verifications.some((record) => record.overallResult.includes('Short') || record.notes.toLowerCase().includes('short'))) {
+    signals.push({ label: '❌ Issue / Needs Review', tone: 'warning' });
+  }
+
+  if (verifications.some((record) => record.overrideUsed || record.overallResult.includes('Review'))) {
+    signals.push({ label: 'Needs Review', tone: 'warning' });
+  }
+
+  return signals.length ? signals : [{ label: 'No recent activity', tone: 'neutral' }];
 }
 
 export default function InventoryPage() {
-  const { bins, items, pallets } = useERP();
-  const firebaseReady = isFirebaseConfigured();
-  const firebaseError = getFirebaseConfigError();
-  const lowStockItems = items.filter((item) => item.quantity <= item.reorderPoint).length;
-  const totalUnits = items.reduce((sum, item) => sum + item.quantity, 0);
-
-  const [searchItem, setSearchItem] = useState('');
-  const [lookupRecord, setLookupRecord] = useState<ItemMasterRecord | null>(null);
-  const [pullConfirmations, setPullConfirmations] = useState<PullConfirmationRecord[]>([]);
-  const [recentVerifications, setRecentVerifications] = useState<ScanVerificationRecord[]>([]);
-  const [lookupStatus, setLookupStatus] = useState('');
-  const [lookupError, setLookupError] = useState('');
-  const [isLookingUp, setIsLookingUp] = useState(false);
+  const { pullConfirmations } = useERP();
+  const [searchMode, setSearchMode] = useState<SearchMode>('item');
+  const [query, setQuery] = useState('');
+  const [itemRecord, setItemRecord] = useState<ItemMasterRecord | null>(null);
+  const [itemMatches, setItemMatches] = useState<ItemMasterRecord[]>([]);
+  const [pulls, setPulls] = useState<PullConfirmationRecord[]>([]);
+  const [verifications, setVerifications] = useState<ScanVerificationRecord[]>([]);
+  const [scans, setScans] = useState<QrScanRecord[]>([]);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [isWorking, setIsWorking] = useState(false);
 
   async function handleLookup(event?: FormEvent) {
     event?.preventDefault();
 
-    const item = searchItem.trim();
-
-    if (!item) {
-      setLookupError('Enter an item number to search the imported item master.');
+    const term = query.trim();
+    if (!term) {
+      setError('Enter an item number, location, or document number to search.');
       return;
     }
 
-    setLookupStatus('');
-    setLookupError('');
-    setIsLookingUp(true);
+    setStatus('');
+    setError('');
+    setIsWorking(true);
 
     try {
-      const [record, pulls, verifications] = await Promise.all([
-        getItemMasterRecord(item),
-        listActivePullConfirmations(item),
-        listRecentScanVerifications(item),
-      ]);
+      if (searchMode === 'item') {
+        const [record, pullRows, verificationRows, scanRows] = await Promise.all([
+          getItemMasterRecord(term),
+          listPullConfirmationsByItem(term),
+          listRecentScanVerificationsByItem(term),
+          listRecentQrScansByItem(term),
+        ]);
 
-      setLookupRecord(record);
-      setPullConfirmations(pulls);
-      setRecentVerifications(verifications);
-      setLookupStatus(
-        record
-          ? `Loaded item ${record.item} with ${pulls.length} active pull confirmation(s) and ${verifications.length} recent verification record(s).`
-          : `No item master record found for ${item}.`,
-      );
-    } catch (error) {
-      setLookupError(error instanceof Error ? error.message : 'Unable to search the item master.');
+        setItemRecord(record);
+        setItemMatches(record ? [record] : []);
+        setPulls(pullRows);
+        setVerifications(verificationRows);
+        setScans(scanRows);
+        setStatus(record ? `Loaded item ${record.item} from item master.` : `No item master record found for ${term}.`);
+      }
+
+      if (searchMode === 'location') {
+        const [matches, pullRows, verificationRows, scanRows] = await Promise.all([
+          listItemMasterRecordsByLocation(term),
+          listPullConfirmationsByLocation(term),
+          listRecentScanVerificationsByLocation(term),
+          listRecentQrScansByLocation(term),
+        ]);
+
+        setItemRecord(matches[0] ?? null);
+        setItemMatches(matches);
+        setPulls(pullRows);
+        setVerifications(verificationRows);
+        setScans(scanRows);
+        setStatus(`Loaded ${matches.length} item master record(s) for location ${term.toUpperCase()}.`);
+      }
+
+      if (searchMode === 'document') {
+        const [pullRows, verificationRows, scanRows] = await Promise.all([
+          listPullConfirmationsByDocument(term),
+          listRecentScanVerificationsByDocument(term),
+          listRecentQrScansByDocument(term),
+        ]);
+
+        setItemRecord(null);
+        setItemMatches([]);
+        setPulls(pullRows);
+        setVerifications(verificationRows);
+        setScans(scanRows);
+        setStatus(`Loaded document activity for ${term}.`);
+      }
+    } catch (lookupError) {
+      setError(lookupError instanceof Error ? lookupError.message : 'Unable to search inventory lookup.');
     } finally {
-      setIsLookingUp(false);
+      setIsWorking(false);
     }
   }
 
-  const lookupSignals = deriveLookupSignals(pullConfirmations, recentVerifications);
+  const signals = useMemo(() => deriveSignals(itemRecord, itemMatches, pulls, verifications), [itemMatches, itemRecord, pulls, verifications]);
+  const openPulls = pullConfirmations.filter((record) => record.active).length;
 
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Storage"
-        title="Inventory"
-        description="Search the imported item master, see available quantity and location, and review active pulls plus recent scan verifications from the order-picking workflow."
+        eyebrow="Fast Lookup"
+        title="Inventory Lookup"
+        description="Search item master, pull confirmations, recent scan verifications, and QR scan history by item number, location, or document number."
       />
 
-      <RouteWorkflowCard route="/inventory" />
-
-      {!firebaseReady ? <div className="info-banner warning-banner">{firebaseError}</div> : null}
-
       <section className="stat-grid">
-        <StatCard label="Inventory Units" value={formatCompactNumber(totalUnits)} helper={`${items.length} demo SKUs loaded`} />
-        <StatCard label="Low Stock" value={`${lowStockItems}`} helper="Items at or below reorder point" />
-        <StatCard label="Tracked Bins" value={`${bins.length}`} helper="Open, tight, and audit-needed bins" />
-        <StatCard label="Active Pallets" value={`${pallets.length}`} helper="Stored, inbound, or moving pallets" />
+        <StatCard label="Active Pulls" value={`${openPulls}`} helper="Current inventory-facing confirmations" />
+        <StatCard label="Lookup Signals" value={`${signals.length}`} helper="Pulled, wrong, short, and review indicators" />
+        <StatCard label="Verifications" value={`${verifications.length}`} helper="Recent matching verification rows" />
+        <StatCard label="QR Scans" value={`${scans.length}`} helper="Recent scan history rows for the current search" />
       </section>
 
-      <SectionCard title="Inventory Lookup" description="Search an item number to pull its itemMaster record, available quantity, default/bin location, active pulls, and recent verification audit history.">
+      <SectionCard title="Inventory Search" description="Search by item number, location, or document number without calling external systems.">
         <form className="stack-form" onSubmit={(event) => void handleLookup(event)}>
-          <label>
-            <span>Item number</span>
-            <input
-              className="text-input"
-              value={searchItem}
-              onChange={(event) => setSearchItem(event.target.value)}
-              placeholder="552103"
-            />
-          </label>
+          <div className="inline-form-grid">
+            <label>
+              <span>Search By</span>
+              <select className="text-input" value={searchMode} onChange={(event) => setSearchMode(event.target.value as SearchMode)}>
+                <option value="item">Item #</option>
+                <option value="location">Location</option>
+                <option value="document">Document #</option>
+              </select>
+            </label>
+            <label>
+              <span>Search Value</span>
+              <input
+                className="text-input"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={searchMode === 'item' ? '552103' : searchMode === 'location' ? 'A-02-2' : 'SXFR123456'}
+              />
+            </label>
+          </div>
+          {status ? <div className="verification-banner success">{status}</div> : null}
+          {error ? <div className="verification-banner danger">{error}</div> : null}
           <div className="button-row">
-            <button className="primary-button" type="submit" disabled={!firebaseReady || isLookingUp}>
-              {isLookingUp ? 'Searching…' : 'Search Item Master'}
+            <button className="primary-button" type="submit" disabled={isWorking}>
+              {isWorking ? 'Searching...' : 'Search'}
             </button>
           </div>
-          {lookupStatus ? <div className="info-banner success-banner">{lookupStatus}</div> : null}
-          {lookupError ? <div className="info-banner danger-banner">{lookupError}</div> : null}
         </form>
       </SectionCard>
 
       <div className="split-layout">
-        <SectionCard title="Item Master Record" description="Direct item-level lookup from Firestore itemMaster.">
-          {lookupRecord ? (
+        <SectionCard title="Item Master Result" description="Item Availability.xlsx records stored in Firestore itemMaster.">
+          {searchMode === 'item' && itemRecord ? (
             <div className="stack-form">
               <div className="detail-grid">
                 <div>
                   <dt>Item</dt>
-                  <dd>{lookupRecord.item}</dd>
+                  <dd>{itemRecord.item}</dd>
                 </div>
                 <div>
                   <dt>Description</dt>
-                  <dd>{lookupRecord.description || '—'}</dd>
+                  <dd>{itemRecord.description || '—'}</dd>
                 </div>
                 <div>
                   <dt>Available Qty</dt>
-                  <dd>{lookupRecord.availableQty}</dd>
+                  <dd>{itemRecord.availableQty}</dd>
                 </div>
                 <div>
                   <dt>Default Location</dt>
-                  <dd>{lookupRecord.defaultLocation || '—'}</dd>
+                  <dd>{itemRecord.defaultLocation || '—'}</dd>
                 </div>
                 <div>
                   <dt>Bin Location</dt>
-                  <dd>{lookupRecord.binLocation || '—'}</dd>
+                  <dd>{itemRecord.binLocation || '—'}</dd>
                 </div>
                 <div>
                   <dt>UOM</dt>
-                  <dd>{lookupRecord.uom || '—'}</dd>
-                </div>
-                <div>
-                  <dt>Category</dt>
-                  <dd>{lookupRecord.category || '—'}</dd>
-                </div>
-                <div>
-                  <dt>Type</dt>
-                  <dd>{lookupRecord.itemType || '—'}</dd>
+                  <dd>{itemRecord.uom || '—'}</dd>
                 </div>
               </div>
-              <div className="chip-grid">
-                {lookupSignals.map((signal) => (
-                  <StatusBadge key={signal} status={signal} />
-                ))}
-              </div>
-              {lookupRecord.websiteUrl ? (
-                <a className="secondary-button inline-link-button" href={lookupRecord.websiteUrl} target="_blank" rel="noreferrer">
-                  Open Website URL
-                </a>
-              ) : null}
-              <div className="code-block">{JSON.stringify(lookupRecord.qrPayload, null, 2)}</div>
             </div>
+          ) : searchMode === 'location' ? (
+            <DataTable
+              rows={itemMatches}
+              emptyMessage="No item master rows matched the location search."
+              columns={[
+                { key: 'item', label: 'Item', render: (row) => row.item },
+                { key: 'description', label: 'Description', render: (row) => row.description || '—' },
+                { key: 'availableQty', label: 'Available Qty', render: (row) => row.availableQty },
+                { key: 'defaultLocation', label: 'Default Location', render: (row) => row.defaultLocation || '—' },
+                { key: 'binLocation', label: 'Bin', render: (row) => row.binLocation || '—' },
+              ]}
+            />
           ) : (
-            <div className="empty-state">Search an item number to load the Firestore item master record.</div>
+            <div className="empty-state">
+              {searchMode === 'document'
+                ? 'Document searches focus on pulls, verifications, and QR scans.'
+                : 'Search an item number or location to load item master results.'}
+            </div>
           )}
         </SectionCard>
 
-        <SectionCard title="Active Pull Confirmations" description="Pulls that have already been checked and sent toward inventory review.">
+        <SectionCard title="Signals" description="Fast badges for pulled, wrong, short, and review states.">
+          <div className="chip-grid">
+            {signals.map((signal) => (
+              <StatusBadge key={signal.label} status={signal.label} toneOverride={signal.tone} />
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Active Pull Confirmations" description="Pulls already sent to inventory for the current search.">
+        <DataTable
+          rows={pulls}
+          emptyMessage="No pull confirmations matched the current search."
+          columns={[
+            { key: 'documentNumber', label: 'Document #', render: (row) => row.documentNumber || '—' },
+            { key: 'item', label: 'Item', render: (row) => row.item },
+            { key: 'location', label: 'Location', render: (row) => row.location || '—' },
+            { key: 'pickedQty', label: 'Picked Qty', render: (row) => row.pickedQty },
+            { key: 'inventoryStatus', label: 'Inventory Status', render: (row) => <StatusBadge status={row.inventoryStatus} /> },
+            { key: 'updatedAt', label: 'Updated', render: (row) => (row.updatedAt ? formatDateTime(row.updatedAt) : '—') },
+          ]}
+        />
+      </SectionCard>
+
+      <div className="split-layout">
+        <SectionCard title="Recent Scan Verifications" description="Item and location verification history for the current search.">
           <DataTable
-            rows={pullConfirmations}
-            emptyMessage="No active pull confirmations found for the searched item."
+            rows={verifications}
+            emptyMessage="No verification history matched the current search."
             columns={[
-              { key: 'order', label: 'Order', render: (row) => row.orderNumber },
-              { key: 'item', label: 'Item', render: (row) => row.item },
+              { key: 'createdAt', label: 'Verified', render: (row) => (row.createdAt ? formatDateTime(row.createdAt) : '—') },
+              { key: 'expectedItem', label: 'Expected Item', render: (row) => row.expectedItem || '—' },
+              { key: 'scannedItem', label: 'Scanned Item', render: (row) => row.scannedItem || '—' },
+              { key: 'scannedLocation', label: 'Scanned Location', render: (row) => row.scannedLocation || '—' },
+              { key: 'result', label: 'Verify Result', render: (row) => <div className="table-note">{row.overallResult}</div> },
+            ]}
+          />
+        </SectionCard>
+
+        <SectionCard title="Recent QR Scans" description="Captured QR scan history for audit visibility.">
+          <DataTable
+            rows={scans}
+            emptyMessage="No QR scan history matched the current search."
+            columns={[
+              { key: 'createdAt', label: 'Scanned', render: (row) => (row.createdAt ? formatDateTime(row.createdAt) : '—') },
+              { key: 'sourceModule', label: 'Module', render: (row) => row.sourceModule || '—' },
+              { key: 'item', label: 'Item', render: (row) => row.item || '—' },
               { key: 'location', label: 'Location', render: (row) => row.location || '—' },
-              { key: 'status', label: 'Inventory Status', render: (row) => <StatusBadge status={row.inventoryStatus} /> },
-              { key: 'created', label: 'Created', render: (row) => (row.createdAt ? formatDateTime(row.createdAt) : '—') },
+              { key: 'result', label: 'Result', render: (row) => <StatusBadge status={row.result || 'Captured'} /> },
             ]}
           />
         </SectionCard>
       </div>
-
-      <SectionCard title="Recent Scan Verifications" description="Latest scan verification events tied to the searched item number.">
-        <DataTable
-          rows={recentVerifications}
-          emptyMessage="No recent scan verifications found for the searched item."
-          columns={[
-            { key: 'created', label: 'Verified At', render: (row) => (row.createdAt ? formatDateTime(row.createdAt) : '—') },
-            { key: 'expectedItem', label: 'Expected Item', render: (row) => row.expectedItem },
-            { key: 'scannedItem', label: 'Scanned Item', render: (row) => row.scannedItem || '—' },
-            { key: 'location', label: 'Scanned Location', render: (row) => row.scannedLocation || '—' },
-            { key: 'result', label: 'Verify Result', render: (row) => <div className="table-note">{row.overallResult}</div> },
-            { key: 'notes', label: 'Notes', render: (row) => row.notes || '—' },
-          ]}
-        />
-      </SectionCard>
-
-      <SectionCard title="Demo Warehouse Snapshot" description="Legacy local demo records remain available for the broader warehouse walkthrough.">
-        <DataTable
-          rows={items}
-          columns={[
-            { key: 'sku', label: 'SKU', render: (row) => row.sku },
-            { key: 'name', label: 'Item', render: (row) => row.name },
-            { key: 'qty', label: 'On Hand', render: (row) => row.quantity },
-            { key: 'bin', label: 'Bin', render: (row) => row.binId },
-            { key: 'pallet', label: 'Pallet', render: (row) => row.palletId },
-            { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
-          ]}
-        />
-      </SectionCard>
     </div>
   );
 }

@@ -10,97 +10,67 @@ export const navigationItems: NavigationItem[] = [
     path: '/',
     label: 'Dashboard',
     shortLabel: 'Home',
-    description: 'Warehouse KPIs and quick actions',
-  },
-  {
-    path: '/qr-flows',
-    label: 'QR Code Flows',
-    shortLabel: 'Flows',
-    description: 'Supported QR types and workflow routing',
-  },
-  {
-    path: '/scanner',
-    label: 'QR Scanner',
-    shortLabel: 'Scan',
-    description: 'Camera-based scanning and manual entry',
-  },
-  {
-    path: '/generator',
-    label: 'QR Labels / Item Master',
-    shortLabel: 'Labels',
-    description: 'Generate labels and manage imported item master data',
-  },
-  {
-    path: '/scan-history',
-    label: 'Scan History',
-    shortLabel: 'History',
-    description: 'Saved scans, actions, and filters',
+    description: 'Unified warehouse activity and quick actions',
   },
   {
     path: '/receiving',
-    label: 'Receiving',
+    label: 'Receiving / Sticker Labels',
     shortLabel: 'Recv',
-    description: 'Inbound loads, docks, and OSD actions',
+    description: 'Sticker labels, receiving imports, and item master',
   },
   {
-    path: '/inventory',
-    label: 'Inventory',
-    shortLabel: 'Inv',
-    description: 'Items, pallets, and storage bins',
+    path: '/location-labels',
+    label: 'Location QR Labels',
+    shortLabel: 'Loc',
+    description: 'Generate and print warehouse location labels',
   },
   {
     path: '/putaway',
-    label: 'Putaway',
+    label: 'Put Away',
     shortLabel: 'Put',
-    description: 'Directed putaway task queue',
+    description: 'Scan-driven put away logs with dock-to-stock timing',
   },
   {
     path: '/cycle-count',
     label: 'Cycle Count',
     shortLabel: 'Count',
-    description: 'Scheduled counts and variance control',
+    description: 'Location-led counting and variance review',
   },
   {
     path: '/order-picking',
     label: 'Order Picking',
     shortLabel: 'Pick',
-    description: 'Order and transfer picking work',
+    description: 'Pick ticket verification, pull checks, and ticket finish',
   },
   {
-    path: '/shipping',
-    label: 'Shipping',
-    shortLabel: 'Ship',
-    description: 'Outbound wave and trailer readiness',
+    path: '/inventory',
+    label: 'Inventory Lookup',
+    shortLabel: 'Inv',
+    description: 'Fast item, location, and document lookups',
   },
   {
-    path: '/safety',
-    label: 'Safety',
-    shortLabel: 'Safe',
-    description: 'Incident tracking and compliance follow-up',
+    path: '/pull-confirmations',
+    label: 'Pull Confirmations',
+    shortLabel: 'Pulls',
+    description: 'Inventory-facing pull queue and recheck status',
   },
   {
-    path: '/equipment',
-    label: 'Equipment',
-    shortLabel: 'Equip',
-    description: 'Forklifts, scanners, and utilization',
+    path: '/employees',
+    label: 'Employees',
+    shortLabel: 'Team',
+    description: 'Warehouse team roster and role visibility',
   },
   {
-    path: '/reports',
-    label: 'Reports',
-    shortLabel: 'Rpts',
-    description: 'Performance snapshots and trends',
-  },
-  {
-    path: '/settings',
-    label: 'Settings',
-    shortLabel: 'More',
-    description: 'Demo users, preferences, and reset tools',
+    path: '/history',
+    label: 'History',
+    shortLabel: 'Hist',
+    description: 'Warehouse activity log and CSV export',
   },
 ];
 
-export const mobilePrimaryPaths = ['/', '/scanner', '/inventory', '/receiving', '/reports'];
+export const mobilePrimaryPaths = ['/', '/receiving', '/putaway', '/order-picking', '/inventory'];
 
 export function getNavigationLabel(pathname: string) {
   const match = navigationItems.find((item) => item.path === pathname);
-  return match?.label ?? 'QR Legends ERP';
+  return match?.label ?? 'QR Warehouse ERP';
 }

@@ -5,11 +5,12 @@ import { getNavigationLabel, mobilePrimaryPaths, navigationItems } from '../../a
 interface AppShellProps {
   children: ReactNode;
   currentUserName: string;
-  siteName: string;
-  activeScanLabel?: string;
+  currentUserRole: string;
+  currentUserEmail: string;
+  onSignOut: () => Promise<void>;
 }
 
-export default function AppShell({ children, currentUserName, siteName, activeScanLabel }: AppShellProps) {
+export default function AppShell({ children, currentUserName, currentUserRole, currentUserEmail, onSignOut }: AppShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const currentLabel = getNavigationLabel(location.pathname);
@@ -23,12 +24,21 @@ export default function AppShell({ children, currentUserName, siteName, activeSc
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-mark">QL</div>
+          <div className="brand-mark">QR</div>
           <div>
-            <strong>QR Legends ERP</strong>
-            <p>{siteName}</p>
+            <strong>QR Warehouse ERP</strong>
+            <p>Unified warehouse verification and label workflows</p>
           </div>
         </div>
+
+        <div className="sidebar-user">
+          <span className="meta-label">Signed In</span>
+          <strong>{currentUserName}</strong>
+          <small>
+            {currentUserRole} · {currentUserEmail}
+          </small>
+        </div>
+
         <nav className="sidebar-nav" aria-label="Primary">
           {navigationItems.map((item) => (
             <NavLink
@@ -41,6 +51,10 @@ export default function AppShell({ children, currentUserName, siteName, activeSc
             </NavLink>
           ))}
         </nav>
+
+        <button className="secondary-button sidebar-signout" type="button" onClick={() => void onSignOut()}>
+          Sign Out
+        </button>
       </aside>
 
       <div className="app-main">
@@ -50,18 +64,19 @@ export default function AppShell({ children, currentUserName, siteName, activeSc
               Menu
             </button>
             <div>
-              <p className="eyebrow">Warehouse Operations</p>
+              <p className="eyebrow">Unified QR Warehouse ERP</p>
               <h2>{currentLabel}</h2>
             </div>
           </div>
+
           <div className="topbar-meta">
+            <div>
+              <span className="meta-label">Role</span>
+              <strong>{currentUserRole}</strong>
+            </div>
             <div>
               <span className="meta-label">User</span>
               <strong>{currentUserName}</strong>
-            </div>
-            <div>
-              <span className="meta-label">Active Scan</span>
-              <strong>{activeScanLabel ?? 'Waiting for scan'}</strong>
             </div>
           </div>
         </header>
@@ -70,11 +85,20 @@ export default function AppShell({ children, currentUserName, siteName, activeSc
           <div className="mobile-menu-backdrop" onClick={() => setMenuOpen(false)}>
             <div className="mobile-menu" onClick={(event) => event.stopPropagation()}>
               <div className="mobile-menu-header">
-                <strong>QR Legends ERP</strong>
+                <strong>QR Warehouse ERP</strong>
                 <button type="button" className="ghost-button" onClick={() => setMenuOpen(false)}>
                   Close
                 </button>
               </div>
+
+              <div className="mobile-user-card">
+                <span className="meta-label">Signed In</span>
+                <strong>{currentUserName}</strong>
+                <small>
+                  {currentUserRole} · {currentUserEmail}
+                </small>
+              </div>
+
               <nav className="mobile-menu-nav" aria-label="Mobile navigation">
                 {navigationItems.map((item) => (
                   <NavLink
@@ -87,6 +111,10 @@ export default function AppShell({ children, currentUserName, siteName, activeSc
                   </NavLink>
                 ))}
               </nav>
+
+              <button className="secondary-button mobile-signout" type="button" onClick={() => void onSignOut()}>
+                Sign Out
+              </button>
             </div>
           </div>
         ) : null}

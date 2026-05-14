@@ -3,45 +3,50 @@ import AppShell from './components/layout/AppShell';
 import { useERP } from './context/ERPContext';
 import CycleCountPage from './pages/CycleCountPage';
 import DashboardPage from './pages/DashboardPage';
-import EquipmentPage from './pages/EquipmentPage';
-import GeneratorPage from './pages/GeneratorPage';
+import EmployeesPage from './pages/EmployeesPage';
+import HistoryPage from './pages/HistoryPage';
 import InventoryPage from './pages/InventoryPage';
+import LocationLabelsPage from './pages/LocationLabelsPage';
+import LoginPage from './pages/LoginPage';
 import OrderPickingPage from './pages/OrderPickingPage';
+import PullConfirmationsPage from './pages/PullConfirmationsPage';
 import PutawayPage from './pages/PutawayPage';
-import QRFlowsPage from './pages/QRFlowsPage';
 import ReceivingPage from './pages/ReceivingPage';
-import ReportsPage from './pages/ReportsPage';
-import SafetyPage from './pages/SafetyPage';
-import ScanHistoryPage from './pages/ScanHistoryPage';
-import ScannerPage from './pages/ScannerPage';
-import SettingsPage from './pages/SettingsPage';
-import ShippingPage from './pages/ShippingPage';
+
+function LoadingPage() {
+  return (
+    <div className="auth-shell">
+      <div className="auth-panel">
+        <div className="verification-banner info">Loading QR Warehouse ERP...</div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
-  const { currentUser, settings, activeScan } = useERP();
+  const { authLoading, currentUser, signOut } = useERP();
+
+  if (authLoading) {
+    return <LoadingPage />;
+  }
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
 
   return (
-    <AppShell
-      currentUserName={currentUser.name}
-      siteName={settings.siteName}
-      activeScanLabel={activeScan?.displayValue}
-    >
+    <AppShell currentUserName={currentUser.name} currentUserRole={currentUser.role} currentUserEmail={currentUser.email} onSignOut={signOut}>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/qr-flows" element={<QRFlowsPage />} />
-        <Route path="/scanner" element={<ScannerPage />} />
-        <Route path="/generator" element={<GeneratorPage />} />
-        <Route path="/scan-history" element={<ScanHistoryPage />} />
         <Route path="/receiving" element={<ReceivingPage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/location-labels" element={<LocationLabelsPage />} />
         <Route path="/putaway" element={<PutawayPage />} />
         <Route path="/cycle-count" element={<CycleCountPage />} />
         <Route path="/order-picking" element={<OrderPickingPage />} />
-        <Route path="/shipping" element={<ShippingPage />} />
-        <Route path="/safety" element={<SafetyPage />} />
-        <Route path="/equipment" element={<EquipmentPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/pull-confirmations" element={<PullConfirmationsPage />} />
+        <Route path="/employees" element={<EmployeesPage />} />
+        <Route path="/history" element={<HistoryPage />} />
         <Route path="*" element={<DashboardPage />} />
       </Routes>
     </AppShell>

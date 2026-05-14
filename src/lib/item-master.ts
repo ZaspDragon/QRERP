@@ -1,18 +1,9 @@
-import {
-  collection,
-  doc,
-  documentId,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  where,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, documentId, getDoc, getDocs, query, setDoc, where, writeBatch } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
+import type { ActorIdentity, ItemMasterImportRow, ItemMasterRecord } from '../types';
+import { buildItemLabelPayload, normalizeItemNumber } from '../utils/qr';
 import { getFirestoreDb } from './firebase';
 import { detectHeaderRow, getCellValue, parseNumberLike, readFirstWorksheetRows } from './spreadsheet';
-import type { Employee, ItemLabelPayload, ItemMasterImportRow, ItemMasterRecord } from '../types';
 
 const ITEM_MASTER_SOURCE_FILE = 'Item Availability.xlsx';
 const ITEM_MASTER_COLLECTION = 'itemMaster';
@@ -29,10 +20,6 @@ const itemMasterAliases = {
   itemType: ['type', 'itemtype'],
   websiteUrl: ['websiteurl', 'url'],
 } as const;
-
-function normalizeItemId(value: string) {
-  return value.trim();
-}
 
 function chunk<T>(values: T[], size: number) {
   const chunks: T[][] = [];
@@ -60,23 +47,6 @@ function toIsoString(value: unknown) {
   return undefined;
 }
 
-function buildItemLabelPayload(row: {
-  item: string;
-  description: string;
-  defaultLocation: string;
-  binLocation: string;
-  uom: string;
-}): ItemLabelPayload {
-  return {
-    type: 'item_label',
-    item: row.item,
-    description: row.description,
-    location: row.defaultLocation || row.binLocation,
-    uom: row.uom,
-    source: ITEM_MASTER_SOURCE_FILE,
-  };
-}
-
 function mapFirestoreRecord(id: string, data: Record<string, unknown>): ItemMasterRecord {
   const item = String(data.item ?? id);
   const description = String(data.description ?? '');
@@ -97,7 +67,15 @@ function mapFirestoreRecord(id: string, data: Record<string, unknown>): ItemMast
     category: String(data.category ?? ''),
     itemType: String(data.itemType ?? ''),
     websiteUrl: String(data.websiteUrl ?? ''),
-    qrPayload: (data.qrPayload as ItemLabelPayload | undefined) ?? buildItemLabelPayload({ item, description, defaultLocation, binLocation, uom }),
+    qrPayload:
+      (data.qrPayload as ItemMasterRecord['qrPayload'] | undefined) ??
+      buildItemLabelPayload({
+        item,
+        description,
+        location: defaultLocation || binLocation,
+        uom,
+        source: ITEM_MASTER_SOURCE_FILE,
+      }),
     sourceFile: String(data.sourceFile ?? ITEM_MASTER_SOURCE_FILE),
     active: Boolean(data.active ?? true),
     createdAt: toIsoString(data.createdAt),
@@ -144,7 +122,7 @@ export async function parseItemMasterFile(file: File) {
   const parsedRows = rows
     .slice(detected.headerRowIndex + 1)
     .map((row, rowOffset) => {
-      const item = normalizeItemId(getCellValue(row, detected.columnIndexByKey, 'item'));
+      const item = normalizeItemNumber(getCellValue(row, detected.columnIndexByKey, 'item'));
       const description = getCellValue(row, detected.columnIndexByKey, 'description');
       const vendorDescription = getCellValue(row, detected.columnIndexByKey, 'vendorDescription');
       const defaultLocation = getCellValue(row, detected.columnIndexByKey, 'defaultLocation');
@@ -156,7 +134,7 @@ export async function parseItemMasterFile(file: File) {
         return null;
       }
 
-      const previewRow: ItemMasterImportRow = {
+      return {
         rowNumber: detected.headerRowIndex + rowOffset + 2,
         item,
         description: resolvedDescription,
@@ -171,17 +149,15 @@ export async function parseItemMasterFile(file: File) {
         qrPayload: buildItemLabelPayload({
           item,
           description: resolvedDescription,
-          defaultLocation,
-          binLocation,
+          location: defaultLocation || binLocation,
           uom,
+          source: ITEM_MASTER_SOURCE_FILE,
         }),
         sourceFile: ITEM_MASTER_SOURCE_FILE,
         active: true,
-      };
-
-      return previewRow;
+      } satisfies ItemMasterImportRow;
     })
-    .filter((row): row is ItemMasterImportRow => Boolean(row));
+    .filter((row) => row !== null) as ItemMasterImportRow[];
 
   if (!parsedRows.length) {
     throw new Error('No item rows were found after the detected header row.');
@@ -206,7 +182,7 @@ export async function listItemMasterRecords() {
 }
 
 export async function getItemMasterRecord(item: string) {
-  const normalizedItem = normalizeItemId(item);
+  const normalizedItem = normalizeItemNumber(item);
   if (!normalizedItem) {
     return null;
   }
@@ -221,19 +197,41 @@ export async function getItemMasterRecord(item: string) {
   return mapFirestoreRecord(snapshot.id, snapshot.data());
 }
 
-export async function saveItemMasterRecords(rows: ItemMasterImportRow[], user: Employee) {
+export async function listItemMasterRecordsByLocation(location: string) {
+  const normalizedLocation = location.trim().toUpperCase();
+
+  if (!normalizedLocation) {
+    return [];
+  }
+
+  const db = getFirestoreDb();
+  const [defaultLocationSnapshot, binLocationSnapshot] = await Promise.all([
+    getDocs(query(collection(db, ITEM_MASTER_COLLECTION), where('defaultLocation', '==', normalizedLocation))),
+    getDocs(query(collection(db, ITEM_MASTER_COLLECTION), where('binLocation', '==', normalizedLocation))),
+  ]);
+
+  const unique = new Map<string, ItemMasterRecord>();
+
+  [...defaultLocationSnapshot.docs, ...binLocationSnapshot.docs].forEach((itemDoc) => {
+    unique.set(itemDoc.id, mapFirestoreRecord(itemDoc.id, itemDoc.data()));
+  });
+
+  return [...unique.values()].sort((left, right) => left.item.localeCompare(right.item, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+export async function saveItemMasterRecords(rows: ItemMasterImportRow[], user: ActorIdentity) {
   if (!rows.length) {
     return 0;
   }
 
   const db = getFirestoreDb();
-  const itemIds = [...new Set(rows.map((row) => normalizeItemId(row.item)).filter(Boolean))];
-  const existingCreatedAt = new Map<string, unknown>();
+  const itemIds = [...new Set(rows.map((row) => normalizeItemNumber(row.item)).filter(Boolean))];
+  const existingCreatedAt = new Map<string, string | undefined>();
 
   for (const idChunk of chunk(itemIds, 30)) {
     const snapshot = await getDocs(query(collection(db, ITEM_MASTER_COLLECTION), where(documentId(), 'in', idChunk)));
     snapshot.docs.forEach((itemDoc) => {
-      existingCreatedAt.set(itemDoc.id, itemDoc.data().createdAt);
+      existingCreatedAt.set(itemDoc.id, toIsoString(itemDoc.data().createdAt));
     });
   }
 
@@ -241,8 +239,9 @@ export async function saveItemMasterRecords(rows: ItemMasterImportRow[], user: E
     const batch = writeBatch(db);
 
     rowChunk.forEach((row) => {
-      const itemId = normalizeItemId(row.item);
+      const itemId = normalizeItemNumber(row.item);
       const itemRef = doc(db, ITEM_MASTER_COLLECTION, itemId);
+      const now = new Date().toISOString();
 
       batch.set(
         itemRef,
@@ -251,8 +250,8 @@ export async function saveItemMasterRecords(rows: ItemMasterImportRow[], user: E
           description: row.description,
           vendorDescription: row.vendorDescription,
           availableQty: row.availableQty,
-          defaultLocation: row.defaultLocation,
-          binLocation: row.binLocation,
+          defaultLocation: row.defaultLocation.toUpperCase(),
+          binLocation: row.binLocation.toUpperCase(),
           uom: row.uom,
           category: row.category,
           itemType: row.itemType,
@@ -260,8 +259,8 @@ export async function saveItemMasterRecords(rows: ItemMasterImportRow[], user: E
           qrPayload: row.qrPayload,
           sourceFile: ITEM_MASTER_SOURCE_FILE,
           active: true,
-          createdAt: existingCreatedAt.get(itemId) ?? serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: existingCreatedAt.get(itemId) ?? now,
+          updatedAt: now,
           updatedBy: user.name,
           updatedByEmail: user.email,
         },
@@ -295,4 +294,22 @@ export async function exportItemMasterFile(format: 'xlsx' | 'csv') {
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   downloadBlob('item-master-export.xlsx', new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   return records.length;
+}
+
+export async function upsertSingleItemMasterRecord(record: ItemMasterRecord, user: ActorIdentity) {
+  const db = getFirestoreDb();
+  const now = new Date().toISOString();
+
+  await setDoc(
+    doc(db, ITEM_MASTER_COLLECTION, normalizeItemNumber(record.item)),
+    {
+      ...record,
+      item: normalizeItemNumber(record.item),
+      createdAt: record.createdAt ?? now,
+      updatedAt: now,
+      updatedBy: user.name,
+      updatedByEmail: user.email,
+    },
+    { merge: true },
+  );
 }
