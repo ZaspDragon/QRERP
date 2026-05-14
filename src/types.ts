@@ -16,6 +16,9 @@ export const qrTypes = [
 
 export type QRType = (typeof qrTypes)[number];
 export type ScanSource = 'camera' | 'manual' | 'demo' | 'generator';
+export type AccessLevel = 'picker' | 'lead' | 'admin' | 'inventory';
+export type PickLineStatus = 'Queued' | 'Verified' | 'Needs Review' | 'Override Approved' | 'Picked' | 'Short';
+export type InventoryStatus = 'Pending' | 'Needs Review' | 'Short' | '✅ Sent to Inventory';
 
 export interface QRPayload {
   type: QRType;
@@ -88,7 +91,9 @@ export interface Pallet {
 export interface Employee {
   id: string;
   name: string;
+  email: string;
   role: string;
+  accessLevel: AccessLevel;
   shift: string;
   certifications: string[];
   status: string;
@@ -198,4 +203,99 @@ export interface EntitySummary {
   subtitle: string;
   status: string;
   details: DetailRow[];
+}
+
+export interface ItemLabelPayload {
+  type: 'item_label';
+  item: string;
+  description: string;
+  location: string;
+  uom: string;
+  source: string;
+}
+
+export interface ItemMasterImportRow {
+  rowNumber: number;
+  item: string;
+  description: string;
+  vendorDescription: string;
+  availableQty: number;
+  defaultLocation: string;
+  binLocation: string;
+  uom: string;
+  category: string;
+  itemType: string;
+  websiteUrl: string;
+  qrPayload: ItemLabelPayload;
+  sourceFile: string;
+  active: boolean;
+}
+
+export interface ItemMasterRecord extends ItemMasterImportRow {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy: string;
+  updatedByEmail: string;
+}
+
+export interface PickTicketLine {
+  id: string;
+  pickTicketId: string;
+  orderNumber: string;
+  lineNumber: string;
+  expectedItem: string;
+  expectedDescription: string;
+  fromSlot: string;
+  quantity: number;
+  uom: string;
+  scannedItem: string;
+  scannedLocation: string;
+  itemMasterDescription: string;
+  itemStatus: string;
+  locationStatus: string;
+  verifyResult: string;
+  status: PickLineStatus;
+  pullCheck: boolean;
+  inventoryStatus: InventoryStatus;
+  overrideNotes: string;
+  overrideBy: string;
+  overrideByEmail: string;
+  lastVerifiedAt?: string;
+}
+
+export interface ScanVerificationRecord {
+  id: string;
+  pickTicketId: string;
+  lineId: string;
+  orderNumber: string;
+  expectedItem: string;
+  expectedLocation: string;
+  scannedItem: string;
+  scannedLocation: string;
+  itemMasterDescription: string;
+  itemStatus: string;
+  locationStatus: string;
+  overallResult: string;
+  notes: string;
+  overrideUsed: boolean;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
+}
+
+export interface PullConfirmationRecord {
+  id: string;
+  pickTicketId: string;
+  lineId: string;
+  orderNumber: string;
+  item: string;
+  description: string;
+  location: string;
+  inventoryStatus: InventoryStatus;
+  active: boolean;
+  notes: string;
+  createdAt?: string;
+  createdBy: string;
+  createdByEmail: string;
 }

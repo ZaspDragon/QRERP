@@ -82,7 +82,9 @@ export const demoState: AppState = {
     {
       id: 'EMP-100',
       name: 'Mia Santos',
+      email: 'mia.santos@warehouseops.example',
       role: 'Receiving Lead',
+      accessLevel: 'lead',
       shift: 'Day',
       certifications: ['Forklift', 'Hazmat'],
       status: 'Clocked In',
@@ -90,7 +92,9 @@ export const demoState: AppState = {
     {
       id: 'EMP-101',
       name: 'Jordan Lee',
+      email: 'jordan.lee@warehouseops.example',
       role: 'Inventory Control',
+      accessLevel: 'admin',
       shift: 'Day',
       certifications: ['Cycle Count'],
       status: 'Clocked In',
@@ -98,7 +102,9 @@ export const demoState: AppState = {
     {
       id: 'EMP-102',
       name: 'Ava Patel',
+      email: 'ava.patel@warehouseops.example',
       role: 'Shipping Coordinator',
+      accessLevel: 'picker',
       shift: 'Swing',
       certifications: ['Dock Safety', 'PIT'],
       status: 'Clocked In',
@@ -106,7 +112,9 @@ export const demoState: AppState = {
     {
       id: 'EMP-103',
       name: 'Noah Rivera',
+      email: 'noah.rivera@warehouseops.example',
       role: 'Equipment Tech',
+      accessLevel: 'picker',
       shift: 'Day',
       certifications: ['Maintenance', 'Battery Room'],
       status: 'Available',
@@ -268,7 +276,7 @@ export const demoState: AppState = {
   activeScanId: 'SCAN-001',
   settings: {
     siteName: 'QR Legends Demo DC',
-    activeUserId: 'EMP-100',
+    activeUserId: 'EMP-102',
     handheldMode: true,
     autoPrintLabels: false,
   },

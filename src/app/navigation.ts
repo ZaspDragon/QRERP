@@ -26,9 +26,9 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     path: '/generator',
-    label: 'QR Generator',
-    shortLabel: 'Create',
-    description: 'Generate JSON payloads and labels',
+    label: 'QR Labels / Item Master',
+    shortLabel: 'Labels',
+    description: 'Generate labels and manage imported item master data',
   },
   {
     path: '/scan-history',

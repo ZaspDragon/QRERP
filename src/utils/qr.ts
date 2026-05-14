@@ -120,8 +120,20 @@ export function parseScanValue(rawValue: string): ParsedScan {
   }
 
   try {
-    const parsed = JSON.parse(trimmed) as Partial<QRPayload>;
+    const parsed = JSON.parse(trimmed) as Partial<QRPayload> & { item?: string; description?: string; location?: string; source?: string; type?: string };
     if (parsed && typeof parsed === 'object') {
+      if (String(parsed.type ?? '').toLowerCase() === 'item_label' && parsed.item) {
+        return {
+          qrType: 'ITEM',
+          rawValue,
+          displayValue: String(parsed.description ?? parsed.item).trim(),
+          entityId: String(parsed.item).trim(),
+          code: String(parsed.item).trim(),
+          workflowRoute: getWorkflowRoute('ITEM'),
+          payload: null,
+        };
+      }
+
       return normalizePayloadCandidate(parsed, trimmed);
     }
   } catch {
@@ -139,6 +151,18 @@ export function parseScanValue(rawValue: string): ParsedScan {
       entityId,
       code: entityId,
       workflowRoute: getWorkflowRoute(qrType),
+      payload: null,
+    };
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      qrType: 'ITEM',
+      rawValue,
+      displayValue: trimmed,
+      entityId: trimmed,
+      code: trimmed,
+      workflowRoute: getWorkflowRoute('ITEM'),
       payload: null,
     };
   }
