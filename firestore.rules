@@ -2,6 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
     }
@@ -22,91 +23,159 @@ service cloud.firestore {
       return userExists() ? myUserDoc().data.role : null;
     }
 
+    function isPlatformOwner() {
+      return signedIn() && myRole() == 'platformOwner';
+    }
+
     function isAdmin() {
       return signedIn() && myRole() in ['admin', 'lead', 'platformOwner'];
+    }
+
+    function isWorker() {
+      return signedIn() && myRole() in ['worker', 'picker', 'counter'];
     }
 
     function isOwner(userId) {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function validUserCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role in ['worker', 'picker', 'counter']
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'name',
+          'role',
+          'department',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if
-        (
-          isOwner(userId) &&
-          request.resource.data.role in ['worker', 'picker', 'counter'] &&
-          request.resource.data.uid == request.auth.uid
-        )
-        || isAdmin();
+
+      allow create: if validUserCreate(userId) || isAdmin();
+
       allow update: if isAdmin();
-      allow delete: if false;
+
+      allow delete: if isPlatformOwner();
     }
 
     match /employees/{employeeId} {
       allow read: if signedIn();
+
       allow create, update: if isAdmin();
-      allow delete: if false;
+
+      allow delete: if isPlatformOwner();
     }
 
     match /itemMaster/{itemId} {
       allow read: if signedIn();
+
       allow create, update: if isAdmin();
-      allow delete: if false;
+
+      allow delete: if isPlatformOwner();
     }
 
     match /receivingLabels/{labelId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /locations/{locationId} {
       allow read: if signedIn();
+
       allow create, update: if isAdmin();
-      allow delete: if false;
+
+      allow delete: if isPlatformOwner();
     }
 
     match /qrScans/{scanId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /scanVerifications/{scanId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /pullConfirmations/{pullId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /putAwayLogs/{logId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /cycleCountSessions/{sessionId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /orderPickingSessions/{sessionId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
     }
 
     match /activityLogs/{activityId} {
       allow read: if signedIn();
+
       allow create: if signedIn();
+
       allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+
+      allow create, update: if isAdmin();
+
+      allow delete: if isPlatformOwner();
+    }
+
+    match /history/{historyId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn();
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /appLogs/{logId} {
+      allow read: if isAdmin();
+
+      allow create: if signedIn();
+
+      allow update, delete: if isPlatformOwner();
     }
 
     match /{document=**} {
