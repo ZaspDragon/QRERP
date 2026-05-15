@@ -18,6 +18,15 @@ npm install
 npm run dev
 ```
 
+## Windows Troubleshooting
+
+Install Node.js LTS locally before running this project because `npm` ships with Node.js. On Windows, close and reopen PowerShell after installing Node, then verify the toolchain:
+
+```bash
+node -v
+npm -v
+```
+
 ## Production Build
 
 ```bash

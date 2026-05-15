@@ -1,43 +1,39 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: 'AIzaSyAnAhzrwU1w4ecGQ90oaRMJRi9YbcDq8vU',
+  authDomain: 'warehouseflows-3df45.firebaseapp.com',
+  projectId: 'warehouseflows-3df45',
+  storageBucket: 'warehouseflows-3df45.firebasestorage.app',
+  messagingSenderId: '704540642853',
+  appId: '1:704540642853:web:b7af28fc8b0d34c5d1f9cc',
+  measurementId: 'G-PJ95J468WZ',
 } as const;
 
-const requiredConfigKeys = Object.keys(firebaseConfig) as Array<keyof typeof firebaseConfig>;
+export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export function isFirebaseConfigured() {
-  return requiredConfigKeys.every((key) => Boolean(firebaseConfig[key]));
+  return true;
 }
 
 export function getFirebaseConfigError() {
-  if (isFirebaseConfigured()) {
-    return '';
-  }
-
-  const missing = requiredConfigKeys.filter((key) => !firebaseConfig[key]);
-  return `Firebase is not configured. Add ${missing.join(', ')} to your Vite environment.`;
+  return '';
 }
 
 export function getFirebaseApp() {
-  if (!isFirebaseConfigured()) {
-    throw new Error(getFirebaseConfigError());
-  }
-
-  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return app;
 }
 
 export function getFirebaseAuth() {
-  return getAuth(getFirebaseApp());
+  return auth;
 }
 
 export function getFirestoreDb() {
-  return getFirestore(getFirebaseApp());
+  return db;
 }
