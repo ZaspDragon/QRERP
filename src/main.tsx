@@ -5,7 +5,7 @@ import App from './App';
 import { ERPProvider } from './context/ERPContext';
 import './styles.css';
 
-ReactDOM.createRoot(document.getElementById('app') as HTMLElement).render(
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <HashRouter>
       <ERPProvider>
