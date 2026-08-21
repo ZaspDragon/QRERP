@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
 import HistoryPage from './pages/HistoryPage';
 import InventoryPage from './pages/InventoryPage';
+import InventoryScanPage from './pages/InventoryScanPage';
 import LocationLabelsPage from './pages/LocationLabelsPage';
 import LoginPage from './pages/LoginPage';
 import OrderPickingPage from './pages/OrderPickingPage';
@@ -15,13 +16,7 @@ import ReceivingPage from './pages/ReceivingPage';
 import ShippingPage from './pages/ShippingPage';
 
 function LoadingPage() {
-  return (
-    <div className="auth-shell">
-      <div className="auth-panel">
-        <div className="verification-banner info">Loading QR Warehouse ERP...</div>
-      </div>
-    </div>
-  );
+  return <div className="auth-shell"><div className="auth-panel"><div className="verification-banner info">Loading QR Warehouse ERP...</div></div></div>;
 }
 
 export default function App() {
@@ -38,7 +33,8 @@ export default function App() {
         <Route path="/putaway" element={<PutawayPage />} />
         <Route path="/cycle-count" element={<CycleCountPage />} />
         <Route path="/order-picking" element={<OrderPickingPage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/inventory" element={<InventoryScanPage />} />
+        <Route path="/inventory-lookup" element={<InventoryPage />} />
         <Route path="/pull-confirmations" element={<PullConfirmationsPage />} />
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/history" element={<HistoryPage />} />
