@@ -12,6 +12,7 @@ import OrderPickingPage from './pages/OrderPickingPage';
 import PullConfirmationsPage from './pages/PullConfirmationsPage';
 import PutawayPage from './pages/PutawayPage';
 import ReceivingPage from './pages/ReceivingPage';
+import ShippingPage from './pages/ShippingPage';
 
 function LoadingPage() {
   return (
@@ -25,20 +26,14 @@ function LoadingPage() {
 
 export default function App() {
   const { authLoading, currentUser, signOut } = useERP();
-
-  if (authLoading) {
-    return <LoadingPage />;
-  }
-
-  if (!currentUser) {
-    return <LoginPage />;
-  }
-
+  if (authLoading) return <LoadingPage />;
+  if (!currentUser) return <LoginPage />;
   return (
     <AppShell currentUserName={currentUser.name} currentUserRole={currentUser.role} currentUserEmail={currentUser.email} onSignOut={signOut}>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/receiving" element={<ReceivingPage />} />
+        <Route path="/shipping" element={<ShippingPage />} />
         <Route path="/location-labels" element={<LocationLabelsPage />} />
         <Route path="/putaway" element={<PutawayPage />} />
         <Route path="/cycle-count" element={<CycleCountPage />} />
