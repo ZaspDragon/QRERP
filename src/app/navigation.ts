@@ -13,7 +13,8 @@ export const navigationItems: NavigationItem[] = [
   { path: '/shipping', label: 'Shipping', shortLabel: 'Ship', description: 'Verify, load, and send freight to another branch' },
   { path: '/putaway', label: 'Putaway Logs', shortLabel: 'Putaway', description: 'Scan, log and audit putaways' },
   { path: '/cycle-count', label: 'Cycle Counts', shortLabel: 'Counts', description: 'Inventory verification and exceptions' },
-  { path: '/employees', label: 'Employees & Production', shortLabel: 'Labor', description: 'Employee workflows and performance' },
+  { path: '/employees', label: 'Employees', shortLabel: 'Staff', description: 'Employee roster and access' },
+  { path: '/production', label: 'Production & Weekly Averages', shortLabel: 'Production', description: 'Excel imports, pulled/checked lines, putaway KPIs' },
   { path: '/departments', label: 'Sales / Finance / Purchasing', shortLabel: 'Teams', description: 'Enterprise department roadmap' },
 ];
 
