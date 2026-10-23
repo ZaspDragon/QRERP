@@ -926,3 +926,60 @@ textarea.text-input {
     letter-spacing: 0.05em;
   }
 }
+
+
+/* Enterprise theme overrides: preserve the existing QRERP layout and component geometry. */
+.theme-toggle { min-height: 40px; padding: 8px 14px; white-space: nowrap; }
+.enterprise-selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(20,93,168,.16); }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --border: #334a63;
+  --surface: #172638;
+  --surface-strong: #1e3147;
+  --surface-soft: #20364b;
+  --primary: #5ba6f0;
+  --primary-strong: #8cc4ff;
+  --primary-soft: #1d415f;
+  --text-soft: #b1c4d9;
+  --warning: #f8be66;
+  --danger: #ff8b91;
+  --success: #63d6a0;
+  --shadow: 0 18px 40px rgba(0,0,0,.2);
+  color: #edf5ff;
+  background: #0e1927;
+}
+:root[data-theme="dark"] body { color: #edf5ff; background: #0e1927; }
+:root[data-theme="dark"] .topbar { background: rgba(17,29,45,.95); border-bottom: 1px solid var(--border); }
+:root[data-theme="dark"] .page-header,
+:root[data-theme="dark"] .workflow-panel,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .dashboard-metric,
+:root[data-theme="dark"] .action-tile {
+  background: linear-gradient(145deg,#1b3148,#152438);
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .section-card,
+:root[data-theme="dark"] .sidebar-user,
+:root[data-theme="dark"] .mobile-user-card,
+:root[data-theme="dark"] .report-row,
+:root[data-theme="dark"] .info-banner,
+:root[data-theme="dark"] .detail-grid > div { background: var(--surface); border-color: var(--border); }
+:root[data-theme="dark"] .text-input,
+:root[data-theme="dark"] .table-input,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select { background: #203348; color: #edf5ff; border-color: var(--border); }
+:root[data-theme="dark"] .secondary-button,
+:root[data-theme="dark"] .ghost-button,
+:root[data-theme="dark"] .menu-button,
+:root[data-theme="dark"] .chip-button,
+:root[data-theme="dark"] .tab-button,
+:root[data-theme="dark"] .bottom-link { background: var(--surface-strong); color: #dcebff; border-color: var(--border); }
+:root[data-theme="dark"] .data-table td,
+:root[data-theme="dark"] .data-table th { border-color: var(--border); }
+:root[data-theme="dark"] .code-block { background: #102338; color: #dcebff; border-color: var(--border); }
+:root[data-theme="dark"] .camera-stage,
+:root[data-theme="dark"] .label-preview { background: #152438; border-color: var(--border); }
+:root[data-theme="dark"] .stat-value,
+:root[data-theme="dark"] .dashboard-metric strong { color: var(--primary-strong); }
+:root[data-theme="dark"] .nav-link { color: #dcebff; }
