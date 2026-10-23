@@ -13,6 +13,14 @@ interface AppShellProps {
 export default function AppShell({ children, currentUserName, currentUserRole, currentUserEmail, onSignOut }: AppShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try { return window.localStorage.getItem('qrerp-theme') === 'dark' ? 'dark' : 'light'; }
+    catch { return 'light'; }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { window.localStorage.setItem('qrerp-theme', theme); } catch { /* browser storage unavailable */ }
+  }, [theme]);
   const currentLabel = getNavigationLabel(location.pathname);
   const primaryItems = navigationItems.filter((item) => mobilePrimaryPaths.includes(item.path));
 
@@ -26,7 +34,7 @@ export default function AppShell({ children, currentUserName, currentUserRole, c
         <div className="brand-block">
           <div className="brand-mark">QR</div>
           <div>
-            <strong>QR Warehouse ERP</strong>
+            <strong>QR Legends Enterprise</strong>
             <p>Unified warehouse verification and label workflows</p>
           </div>
         </div>
@@ -64,12 +72,13 @@ export default function AppShell({ children, currentUserName, currentUserRole, c
               Menu
             </button>
             <div>
-              <p className="eyebrow">Unified QR Warehouse ERP</p>
+              <p className="eyebrow">QR Legends Enterprise · QRERP</p>
               <h2>{currentLabel}</h2>
             </div>
           </div>
 
           <div className="topbar-meta">
+            <button className="secondary-button theme-toggle" type="button" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀ Light' : '☾ Dark'}</button>
             <div>
               <span className="meta-label">Role</span>
               <strong>{currentUserRole}</strong>
