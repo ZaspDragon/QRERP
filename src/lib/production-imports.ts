@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, orderBy, query, limit, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, limit, setDoc, where } from 'firebase/firestore';
 import { getFirestoreDb } from './firebase';
 
 export type ProductionImportRecord={
@@ -6,9 +6,9 @@ export type ProductionImportRecord={
   filename:string; importedAt:string; importedBy:string;
   rows:Array<{employee:string;pulled:number;checked:number;putaway:number;workedHours:number}>;
 };
-export function subscribeProductionImports(onUpdate:(rows:ProductionImportRecord[])=>void,onError:(reason:string)=>void){
+export function subscribeProductionImports(branch:string,onUpdate:(rows:ProductionImportRecord[])=>void,onError:(reason:string)=>void){
   const db=getFirestoreDb();
-  return onSnapshot(query(collection(db,'productionImports'),orderBy('importedAt','desc'),limit(100)),snapshot=>{
+  return onSnapshot(query(collection(db,'productionImports'),where('branch','==',branch.toUpperCase()),orderBy('importedAt','desc'),limit(100)),snapshot=>{
     onUpdate(snapshot.docs.map(item=>({...item.data() as Omit<ProductionImportRecord,'id'>,id:item.id})));
   },error=>onError(error.message));
 }
