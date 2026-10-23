@@ -31,6 +31,14 @@ service cloud.firestore {
       return signedIn() && myRole() in ['admin', 'lead', 'platformOwner'];
     }
 
+    // Scoped to the authenticated user's centrally assigned branch.
+    // Accounts without a configured branch cannot access branch data.
+    function canAccessBranch(branchCode) {
+      return isPlatformOwner()
+        || (userExists()
+          && myUserDoc().data.get('branch', '') == branchCode);
+    }
+
     function isWorker() {
       return signedIn() && myRole() in ['worker', 'picker', 'counter'];
     }
@@ -157,8 +165,9 @@ service cloud.firestore {
     // Shared production uploads: supervisor-owned, immutable imports.
     // Deploy these rules before enabling production publishing.
     match /productionImports/{importId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() && canAccessBranch(resource.data.branch);
       allow create: if isAdmin()
+        && canAccessBranch(request.resource.data.branch)
         && request.resource.data.importedBy == request.auth.uid
         && request.resource.data.branch is string
         && request.resource.data.periodStart is string
