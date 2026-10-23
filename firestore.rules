@@ -154,6 +154,24 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Shared production uploads: supervisor-owned, immutable imports.
+    // Deploy these rules before enabling production publishing.
+    match /productionImports/{importId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.importedBy == request.auth.uid
+        && request.resource.data.branch is string
+        && request.resource.data.periodStart is string
+        && request.resource.data.periodEnd is string
+        && request.resource.data.rows is list
+        && request.resource.data.rows.size() <= 500
+        && request.resource.data.keys().hasOnly([
+          'branch', 'periodStart', 'periodEnd', 'workdays',
+          'filename', 'importedAt', 'importedBy', 'rows'
+        ]);
+      allow update, delete: if false;
+    }
+
     match /settings/{settingId} {
       allow read: if signedIn();
 
