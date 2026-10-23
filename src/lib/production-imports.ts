@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, orderBy, query, limit, setDoc, type DocumentData } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, limit, setDoc } from 'firebase/firestore';
 import { getFirestoreDb } from './firebase';
 
 export type ProductionImportRecord={
