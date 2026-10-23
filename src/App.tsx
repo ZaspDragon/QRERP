@@ -14,6 +14,7 @@ import PutawayPage from './pages/PutawayPage';
 import ReceivingPage from './pages/ReceivingPage';
 import ShippingPage from './pages/ShippingPage';
 import EnterpriseDepartmentsPage from './pages/EnterpriseDepartmentsPage';
+import ProductionPage from './pages/ProductionPage';
 
 function LoadingPage() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/departments" element={<EnterpriseDepartmentsPage />} />
+        <Route path="/production" element={<ProductionPage />} />
         <Route path="*" element={<DashboardPage />} />
       </Routes>
     </AppShell>
