@@ -11,6 +11,10 @@ export const navigationItems: NavigationItem[] = [
   { path: '/inventory', label: 'Inventory', shortLabel: 'Inventory', description: 'Scan freight into standard, bulk, or perishable slots' },
   { path: '/order-picking', label: 'Transfers / Order Picking', shortLabel: 'Pick', description: 'Pick orders and prepare branch transfers' },
   { path: '/shipping', label: 'Shipping', shortLabel: 'Ship', description: 'Verify, load, and send freight to another branch' },
+  { path: '/putaway', label: 'Putaway Logs', shortLabel: 'Putaway', description: 'Scan, log and audit putaways' },
+  { path: '/cycle-count', label: 'Cycle Counts', shortLabel: 'Counts', description: 'Inventory verification and exceptions' },
+  { path: '/employees', label: 'Employees & Production', shortLabel: 'Labor', description: 'Employee workflows and performance' },
+  { path: '/departments', label: 'Sales / Finance / Purchasing', shortLabel: 'Teams', description: 'Enterprise department roadmap' },
 ];
 
 export const mobilePrimaryPaths = ['/receiving', '/inventory', '/order-picking', '/shipping'];
