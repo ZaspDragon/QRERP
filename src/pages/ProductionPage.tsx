@@ -43,8 +43,8 @@ export default function ProductionPage(){
   const [search,setSearch]=useState('');
   useEffect(()=>{
     if(!firebaseReady || !currentUser)return;
-    return subscribeProductionImports(setShared,setImportError);
-  },[firebaseReady,currentUser?.uid]);
+    return subscribeProductionImports(branch,setShared,setImportError);
+  },[firebaseReady,currentUser?.uid,branch]);
   const inside = (date: string) => (!periodStart||date>=periodStart)&&(!periodEnd||date<=periodEnd);
   const records=useMemo(()=>{
     const totals=new Map<string,ProductionRow>();
